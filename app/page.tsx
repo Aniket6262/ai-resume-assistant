@@ -1,7 +1,15 @@
+"use client";
+
+import { useState } from "react";
+import ProjectCards from "@/components/ProjectCards";
+import ChatBox from "@/components/ChatBox";
+
 export default function Home() {
+  const [preset, setPreset] = useState("");
+
   return (
     <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-5xl px-6 py-10 space-y-8">
+      <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
         {/* Header */}
         <header className="space-y-2">
           <h1 className="text-3xl font-bold">Aniket’s AI Resume Assistant</h1>
@@ -46,12 +54,18 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Next Section Placeholder */}
-        <section className="space-y-2">
-          <h2 className="text-xl font-semibold">Next</h2>
+        {/* Projects */}
+        <section className="space-y-3">
+          <h2 className="text-2xl font-semibold">Projects</h2>
           <p className="text-gray-600">
-            Next we’ll add Project Cards and an AI Chat assistant (with sources).
+            Click a prompt to auto-fill the chat.
           </p>
+          <ProjectCards onAsk={(q) => setPreset(q)} />
+        </section>
+
+        {/* Chat */}
+        <section className="space-y-3">
+          <ChatBox preset={preset} />
         </section>
       </div>
     </main>
