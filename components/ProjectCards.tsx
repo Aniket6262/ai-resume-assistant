@@ -27,16 +27,19 @@ export default function ProjectCards({ onAsk }: Props) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {projects.map((p) => (
-        <div key={p.title} className="rounded-xl border p-4 bg-white">
-          <h3 className="text-lg font-semibold">{p.title}</h3>
-          <p className="text-sm text-gray-600 mt-1">{p.subtitle}</p>
+        <div
+          key={p.title}
+          className="rounded-2xl border bg-white p-5 shadow-sm"
+        >
+          <h3 className="text-lg font-semibold text-slate-900">{p.title}</h3>
+          <p className="text-sm text-slate-600 mt-1">{p.subtitle}</p>
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             {p.prompts.map((q) => (
               <button
                 key={q}
                 onClick={() => onAsk(`${p.title}: ${q}`)}
-                className="text-sm rounded-full border px-3 py-1 hover:bg-gray-100"
+                className="text-sm rounded-full border border-slate-300 bg-white px-3 py-1.5 text-slate-800 hover:bg-slate-100"
                 type="button"
               >
                 Ask AI

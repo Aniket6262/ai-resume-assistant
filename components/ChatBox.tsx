@@ -21,7 +21,7 @@ export default function ChatBox({ preset }: { preset?: string }) {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: msg }),
+      body: JSON.stringify({ message: msg, sessionId: "recruiter-demo" }),
     });
 
     if (!res.body) {
@@ -43,32 +43,36 @@ export default function ChatBox({ preset }: { preset?: string }) {
   }
 
   return (
-    <div className="rounded-xl border p-4 bg-white">
-      <h2 className="text-xl font-semibold">🤖 Ask my AI Resume Assistant</h2>
-      <p className="text-sm text-gray-600 mt-1">
+    <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <h2 className="text-2xl font-semibold text-slate-900">
+        🤖 Ask my AI Resume Assistant
+      </h2>
+      <p className="text-sm text-slate-600 mt-1">
         Ask about my projects, skills, technical decisions, and impact (with sources).
       </p>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-4 flex gap-2">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="w-full rounded-lg border px-3 py-2"
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
           placeholder="Ask a question..."
         />
         <button
           onClick={ask}
           disabled={loading}
-          className="rounded-lg bg-black px-4 py-2 text-white"
+          className="rounded-lg bg-slate-900 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-60"
           type="button"
         >
           {loading ? "..." : "Ask"}
         </button>
       </div>
 
-      <pre className="mt-4 whitespace-pre-wrap text-sm bg-gray-50 p-3 rounded-lg min-h-[140px]">
-        {answer}
-      </pre>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-h-[160px]">
+        <pre className="whitespace-pre-wrap text-sm text-slate-900">
+          {answer || (loading ? "Thinking..." : "")}
+        </pre>
+      </div>
     </div>
   );
 }
