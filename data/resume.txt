@@ -1,0 +1,42 @@
+ANIKET YADAV
+ +1(480)-332-3728 + Tempe, AZ# ayada121@asu.eduï linkedin.com/in/aniketyadav12§ github.com/Aniket6262
+Software Engineering MS student (ASU, 2026) with internship experience in Android video apps, backend API
+development, and large-scale data systems; proficient in Python, Java, Go, C++, and building scalable products used
+by real users.
+RELEVANT EXPERIENCE
+Software Developer Intern| Jio Platforms Ltd| Mumbai, IndiaFeb 2023 - Apr 2023
+•Contributed to improving a multimedia Android application by optimizing video playback performance using
+ExoPlayer while collaborating with a 5-member team.
+•  Implemented JSON parsing and SQLite integration for improved offline access and user experience.
+•  Collaborated with cross-functional teams to gather requirements and deliver features aligned with user needs.
+•  Improved app performance by 5% through code optimization, debugging, and efficient memory management.
+EDUCATION
+Master of Science in Software Engineering, Arizona State University    GPA 3.56/4.0| Expt May 2026
+Coursework:  Advanced Data Structures, Agile Development, Software Validation, Verification and Testing
+Bachelor of Engineering in Information Technology, Mumbai University   GPA 8.77/10.0| 2019 - 2023
+Coursework:  Honors in Data Science,AI/ML, Web Development, Cloud Computing, Database Management Systems,
+IoT, Computer Networks
+SKILLS
+Languages, Frameworks   Python, Java, Go, C++, C#, JavaScript, pytest, Flask, React, Angular, NodeJS
+DatabasesKusto, MySQL, PostgreSQL, NoSQL, MongoDB, Redis, Spark, Hadoop, Azure, AWS
+Tools & TechnologyLLMs, RAG, Unity 3D, Selenium, Linux, Docker, Kubernetes, Android Studio
+ACHIEVEMENTS
+Tank Fest (Unity Game Developer)Jan 2023 - May 2023
+•  Designed a 3D Unity/Blender game published on Google Play with 100+ downloads and 4.7 rating.
+•  Gained expertise in scripting, asset management, and performance optimization.
+PROJECTS
+LLM Red-Teaming Platform for Prompt Security (link)|Python, FastAPI, MongoDB Aug 2025 - Dec 2025
+•Built an automated LLM red-teaming platform testing 1,000+ adversarial prompts, uncovering semantic drift
+exploits that raised jailbreak bypass rates from 22% to 35%.
+•Designed a 3-layer Prompt Firewall (rules + DistilBERT + LLM) achieving<5% false positives and cut visual
+prompt-injection success 42% to<9% using OCR sanitization.
+Semantic Sports Analytics Platform (link)| Python,Apache Jena Fuseki, Flask, React Jul 2024 - Nov 2024
+•
+Built scalable REST APIs to serve analytics queries with sub-2s latency for large datasets (200K+ records 5+
+datasets), enabling high-precision knowledge retrieval.
+•
+Optimized 20+ SPARQL queries on Apache Jena Fuseki to achieve   1.2s average latency and delivered 10+
+analytics insights via Flask + React with 100% query accuracy
+Fine-tuning LLMs (FLAN-T5,Llama 2) (link)| Python, PyTorch, Hugging FaceJul 2023 - May 2024
+•  Fine-tuned FLAN-T5 for dialogue summarization, achieving 18% quality improvement.
+•  Enhanced Llama 2 for Python code generation, achieving 5% improvement in accuracy and efficiency.

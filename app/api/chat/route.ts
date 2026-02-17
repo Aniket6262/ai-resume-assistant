@@ -1,103 +1,119 @@
 import OpenAI from "openai";
+import fs from "node:fs/promises";
+import path from "node:path";
+
+export const runtime = "nodejs"; // fs needs Node runtime
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
 
-// Simple in-memory session memory (resets if server restarts)
-const memoryStore: Record<
-  string,
-  { role: "user" | "assistant"; content: string }[]
-> = {};
+type Msg = { role: "user" | "assistant"; content: string };
+const memoryStore: Record<string, Msg[]> = {};
 
-// ✅ Your resume/project context (edit anytime to match your real resume)
-const RESUME_CONTEXT = `
-Name: Aniket Yadav
+// --- helpers ---
+async function loadResumeText() {
+  const resumePath = path.join(process.cwd(), "data", "resume.txt");
+  return await fs.readFile(resumePath, "utf-8");
+}
 
-Projects:
+function extractUrls(text: string) {
+  // Grabs http/https links; trims trailing punctuation sometimes copied in PDFs
+  const raw = Array.from(text.matchAll(/https?:\/\/\S+/g)).map((m) => m[0]);
+  return raw.map((u) => u.replace(/[)\],.]+$/g, ""));
+}
 
-1) Semantic Sports Analytics Platform
-- Built a semantic ontology system using OWL/RDF/SPARQL to query 200K+ records across 5+ datasets.
-- Developed 20+ optimized SPARQL queries on Apache Jena Fuseki with ~1.2s average query latency.
-- Implemented full-stack platform with Flask + React delivering 10+ analytical insights with 100% query accuracy.
+const SYSTEM_PROMPT = `
+You are Aniket's AI Resume Assistant.
+Answer naturally like a human explaining his resume.
+Use ONLY the resume context (resume.txt). If info is missing, say you don’t have that info.
 
-Tech Stack:
-- OWL, RDF, SPARQL, Apache Jena Fuseki, Flask, React, Python
+IMPORTANT FORMATTING RULES:
+1) If the user asks about "projects" or "tell me about your project(s)", you MUST format like this:
 
-2) LLM Red-Teaming Platform
-- Built an automated red-teaming framework evaluating 1,000+ adversarial prompts for jailbreaks and prompt injection.
-- Identified semantic vector-drift attacks increasing jailbreak bypass from 22% → 35%.
-- Implemented a DistilBERT-based classifier and multi-layer prompt firewall.
+<Project Name> (<dates if available>)
+- 2–4 bullet points describing ONLY this project (what it is, what you built, impact/metrics)
+GitHub/Link: <clickable URL if it exists in resume; otherwise omit this line entirely>
 
-Tech Stack:
-- Python, PyTorch, DistilBERT, Flask, React
+Then repeat the same block for the next project.
+Do NOT list all project names first.
+Do NOT print "GitHub/Link: Not provided".
+Do NOT add a Sources section unless the resume contains an actual project URL, and ONLY include Sources for that project.
+
+2) For non-project questions (phone, LinkedIn, education, experience, skills, etc.), do NOT include Sources.
+
+3) Keep tone human and concise. Bullets only when helpful.
+
+When you include a URL, always print it as plain text (https://...) so the UI makes it clickable.
 `;
 
 export async function POST(req: Request) {
-  // Expect: { message: string, sessionId?: string }
-  const { message, sessionId = "default" } = await req.json();
+  try {
+    const { message, sessionId = "default" } = await req.json();
 
-  if (!process.env.OPENAI_API_KEY) {
-    return new Response("Missing OPENAI_API_KEY in .env.local", { status: 500 });
-  }
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response("Missing OPENAI_API_KEY", { status: 500 });
+    }
 
-  if (!message || typeof message !== "string") {
-    return new Response("Invalid request. Expected { message: string }", {
-      status: 400,
-    });
-  }
+    const resumeText = await loadResumeText();
+    const urls = extractUrls(resumeText);
 
-  if (!memoryStore[sessionId]) memoryStore[sessionId] = [];
+    if (!memoryStore[sessionId]) memoryStore[sessionId] = [];
 
-  const messages = [
-    {
-      role: "system" as const,
-      content:
-        "You are Aniket's AI Resume Assistant. Use ONLY the context below to answer recruiter questions. " +
-        "Be concise, professional, and include metrics + tech stack when available. " +
-        "Output plain text bullets (no markdown like ** or ##). " +
-        "At the end of each answer, add a short 'Sources:' line referencing the project name used. " +
-        "If something is not in the context, say you don't have that info.\n\n" +
-        RESUME_CONTEXT,
-    },
-    ...memoryStore[sessionId],
-    { role: "user" as const, content: message },
-  ];
-
-  // Streaming response
-  const stream = await openai.chat.completions.create({
-    model: "gpt-5.2-chat-latest",
-    stream: true,
-    messages,
-  });
-
-  const encoder = new TextEncoder();
-
-  return new Response(
-    new ReadableStream({
-      async start(controller) {
-        let fullAnswer = "";
-
-        try {
-          for await (const chunk of stream) {
-            const token = chunk.choices?.[0]?.delta?.content ?? "";
-            fullAnswer += token;
-            controller.enqueue(encoder.encode(token));
-          }
-
-          // Save conversation to memory
-          memoryStore[sessionId].push({ role: "user", content: message });
-          memoryStore[sessionId].push({ role: "assistant", content: fullAnswer });
-
-          controller.close();
-        } catch (err) {
-          controller.enqueue(
-            encoder.encode("\n\n[Error while streaming response]")
-          );
-          controller.close();
-        }
+    const messages = [
+      {
+        role: "system" as const,
+        content:
+          SYSTEM_PROMPT +
+          "\n\nRESUME TEXT:\n" +
+          resumeText +
+          "\n\nURLS FOUND IN RESUME (Only these may appear in Sources):\n" +
+          (urls.length ? urls.join("\n") : "NONE"),
       },
-    }),
-    { headers: { "Content-Type": "text/plain; charset=utf-8" } }
-  );
+      ...memoryStore[sessionId],
+      { role: "user" as const, content: message },
+    ];
+
+    const stream = await openai.chat.completions.create({
+      model: "gpt-5.2-chat-latest",
+      stream: true,
+      messages,
+    });
+
+    const encoder = new TextEncoder();
+
+    return new Response(
+      new ReadableStream({
+        async start(controller) {
+          let full = "";
+          try {
+            for await (const chunk of stream) {
+              const token = chunk.choices?.[0]?.delta?.content ?? "";
+              if (!token) continue;
+
+              full += token;
+              controller.enqueue(encoder.encode(token));
+            }
+
+            memoryStore[sessionId].push({ role: "user", content: message });
+            memoryStore[sessionId].push({ role: "assistant", content: full });
+          } catch (e) {
+            console.error("Streaming error:", e);
+            controller.enqueue(encoder.encode("\n\n[Error streaming response]\n"));
+          } finally {
+            controller.close();
+          }
+        },
+      }),
+      {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "no-cache",
+        },
+      }
+    );
+  } catch (err) {
+    console.error("API error:", err);
+    return new Response("Server error", { status: 500 });
+  }
 }
