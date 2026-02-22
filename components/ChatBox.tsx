@@ -13,62 +13,82 @@ const linkifyOptions = {
   className: "text-blue-600 underline hover:text-blue-700 break-all",
 };
 
-function renderAssistantText(text: string) {
-  const lines = (text || "")
-    .split("\n")
-    .map((l) => l.trimEnd())
-    .filter((l) => l.trim() !== "");
+// Detects "Label: https://..." and renders as a short clickable badge
+// e.g. "GitHub: https://github.com/..." → [GitHub ↗]
+function renderLinkBadge(text: string): React.ReactElement | null {
+  const match = text.match(/^([^:]+):\s*(https?:\/\/\S+)$/i);
+  if (!match) return null;
+  const label = match[1].trim();
+  const url = match[2].trim();
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600 transition-colors"
+    >
+      {label} ↗
+    </a>
+  );
+}
 
-  // Detect bullets that start with "- "
-  const bulletLines = lines.filter((l) => l.trim().startsWith("- "));
-  const otherLines = lines.filter((l) => !l.trim().startsWith("- "));
+function renderAssistantText(text: string) {
+  const lines = (text || "").split("\n").map((l) => l.trimEnd());
+
+  type Block =
+    | { type: "text"; content: string }
+    | { type: "bullets"; items: string[] };
+
+  const blocks: Block[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "") continue;
+
+    if (trimmed.startsWith("- ")) {
+      const last = blocks[blocks.length - 1];
+      if (last?.type === "bullets") {
+        last.items.push(trimmed.replace(/^- /, ""));
+      } else {
+        blocks.push({ type: "bullets", items: [trimmed.replace(/^- /, "")] });
+      }
+    } else {
+      blocks.push({ type: "text", content: trimmed });
+    }
+  }
 
   return (
     <div className="space-y-2">
-      {otherLines.map((line, i) => {
-        // Keep your Sources formatter (clickable)
-        if (line.toLowerCase().startsWith("sources:")) {
-          const urlMatch = line.match(/https?:\/\/\S+/);
-          const url = urlMatch?.[0];
-
+      {blocks.map((block, i) => {
+        if (block.type === "text") {
           return (
-            <div key={`src-${i}`} className="pt-1 text-xs text-slate-600">
-              {"Sources: "}
-              {url ? (
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 underline hover:text-blue-700 break-all"
-                >
-                  {url}
-                </a>
-              ) : (
-                <span>{line.replace(/^sources:\s*/i, "")}</span>
-              )}
-            </div>
+            <p key={i} className="whitespace-pre-wrap">
+              <Linkify options={linkifyOptions}>{block.content}</Linkify>
+            </p>
           );
         }
 
-        // Normal text: linkify automatically
         return (
-          <p key={`p-${i}`} className="whitespace-pre-wrap">
-            <Linkify options={linkifyOptions}>{line}</Linkify>
-          </p>
+          <ul key={i} className="list-disc ml-6 space-y-1 marker:text-slate-700">
+            {block.items.map((item, j) => {
+              const badge = renderLinkBadge(item);
+              if (badge) {
+                // No bullet dot for link lines — render as inline badge
+                return (
+                  <li key={j} className="list-none -ml-6 mt-1">
+                    {badge}
+                  </li>
+                );
+              }
+              return (
+                <li key={j}>
+                  <Linkify options={linkifyOptions}>{item}</Linkify>
+                </li>
+              );
+            })}
+          </ul>
         );
       })}
-
-      {bulletLines.length > 0 && (
-        <ul className="list-disc ml-6 space-y-1 marker:text-slate-700">
-          {bulletLines.map((line, i) => (
-            <li key={`b-${i}`}>
-              <Linkify options={linkifyOptions}>
-                {line.replace(/^- /, "")}
-              </Linkify>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -81,12 +101,11 @@ export default function ChatBox({ preset }: { preset?: string }) {
     {
       role: "assistant",
       content:
-        "Hi! Ask me anything about Aniket’s resume, projects, and technical experience. I’ll share sources when relevant.",
+        "Hi! I'm GOJO, Aniket's AI Resume Assistant. Ask me anything about his resume, projects, and technical experience.",
     },
   ]);
 
   const sessionId = useMemo(() => {
-    // stable per browser tab/session
     if (typeof window === "undefined") return "recruiter-demo";
     const key = "ai_resume_session_id";
     const existing = sessionStorage.getItem(key);
@@ -113,10 +132,7 @@ export default function ChatBox({ preset }: { preset?: string }) {
     setInput("");
     setLoading(true);
 
-    // Add user message immediately
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
-
-    // Add empty assistant placeholder (we stream into it)
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
@@ -142,7 +158,6 @@ export default function ChatBox({ preset }: { preset?: string }) {
 
         const chunk = decoder.decode(value);
 
-        // Stream into the last assistant message
         setMessages((prev) => {
           const copy = [...prev];
           const last = copy[copy.length - 1];
@@ -155,15 +170,14 @@ export default function ChatBox({ preset }: { preset?: string }) {
           return copy;
         });
       }
-    } catch (e: any) {
+    } catch {
       setMessages((prev) => {
         const copy = [...prev];
-        // Replace last assistant bubble with error
         if (copy.length && copy[copy.length - 1].role === "assistant") {
           copy[copy.length - 1] = {
             role: "assistant",
             content:
-              "Sorry — I couldn’t reach the server. Please check your API key and /api/chat route.",
+              "Sorry — I couldn't reach the server. Please check your API key and /api/chat route.",
           };
         }
         return copy;
@@ -179,7 +193,7 @@ export default function ChatBox({ preset }: { preset?: string }) {
         🤖 Ask my AI Resume Assistant
       </h2>
       <p className="text-sm text-slate-600 mt-1">
-        Ask about projects, skills, technical decisions, and impact (with sources).
+        Ask about projects, skills, technical decisions, and experience.
       </p>
 
       {/* Chat window */}
