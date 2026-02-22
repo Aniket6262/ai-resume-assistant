@@ -338,60 +338,86 @@ export async function POST(req: Request) {
       content: `${SYSTEM_PROMPT}\n\nRESUME TEXT:\n${resumeText}`,
     };
 
+    // allMessages used only as reference — agent loop builds its own copy
     const allMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       systemMessage,
       ...history,
-      { role: "user", content: message },
+      { role: "user" as const, content: message },
     ];
 
-    // Step 1: Check if GPT wants to use web search
-    const initialResponse = await openai.chat.completions.create({
-      model: "gpt-4o",
-      stream: false,
-      temperature: 0.4,
-      max_tokens: 500,
-      tools,
-      tool_choice: "auto",
-      messages: allMessages,
-    });
-
-    const choice = initialResponse.choices[0];
+    // ── Agent loop: allow up to MAX_SEARCH_STEPS web searches per question ──
+    const MAX_SEARCH_STEPS = 3;
     const encoder = new TextEncoder();
     const sanitize = createSanitizer();
 
-    // Step 2: Tool call → web search → stream final answer
-    if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
-      const toolCall = choice.message.tool_calls[0] as any;
-      const args = JSON.parse(toolCall.function.arguments);
-      const searchResult = await tavilySearch(args.query);
+    // Build mutable message list for the agent loop
+    // NOTE: history already excludes the current message, we add it explicitly once
+    let agentMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      systemMessage,
+      ...history,
+      { role: "user" as const, content: message },
+    ];
 
-      const messagesWithTool: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-        systemMessage,
-        ...history,
-        { role: "user", content: message },
-        choice.message,
-        {
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: searchResult,
-        },
-      ];
+    let searchCount = 0;
+    let usedWebSearch = false;
+
+    while (searchCount < MAX_SEARCH_STEPS) {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        stream: false,
+        temperature: 0.4,
+        max_tokens: 500,
+        tools,
+        tool_choice: searchCount === 0 ? "auto" : "auto",
+        messages: agentMessages,
+      });
+
+      const choice = response.choices[0];
+
+      // If GPT wants to search → execute and loop
+      if (choice.finish_reason === "tool_calls" && choice.message.tool_calls) {
+        // IMPORTANT: must append assistant message first, then ALL tool results
+        // before making the next API call — OpenAI requires this order strictly
+        agentMessages.push(choice.message);
+
+        for (const toolCall of choice.message.tool_calls as any[]) {
+          const args = JSON.parse(toolCall.function.arguments);
+          console.log(`Agent search ${searchCount + 1}: ${args.query}`);
+          const searchResult = await tavilySearch(args.query);
+          usedWebSearch = true;
+          searchCount++;
+
+          agentMessages.push({
+            role: "tool",
+            tool_call_id: toolCall.id,
+            content: searchResult,
+          });
+        }
+
+        continue; // loop again — GPT may want another search
+      }
+
+      // GPT is ready to answer — stream the final response
+      const finalMessages = agentMessages;
 
       const stream = await openai.chat.completions.create({
         model: "gpt-4o",
         stream: true,
         temperature: 0.4,
         max_tokens: 500,
-        messages: messagesWithTool,
+        messages: finalMessages,
       });
 
       return new Response(
         new ReadableStream({
           async start(controller) {
-            // ✅ Verify mode: prefix so user knows this answer came from web search
-            const prefix = "Verified from web:\n";
-            controller.enqueue(encoder.encode(prefix));
-            let full = prefix;
+            // Show verify prefix if any web search was used
+            let full = "";
+            if (usedWebSearch) {
+              const prefix = `Verified from web (${searchCount} search${searchCount > 1 ? "es" : ""}):\n`;
+              controller.enqueue(encoder.encode(prefix));
+              full = prefix;
+            }
             try {
               for await (const chunk of stream) {
                 const token = chunk.choices?.[0]?.delta?.content ?? "";
@@ -414,19 +440,21 @@ export async function POST(req: Request) {
       );
     }
 
-    // Step 3: No tool call — stream direct answer
+    // Safety fallback if max searches reached — ask GPT to answer with what it has
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       stream: true,
       temperature: 0.4,
       max_tokens: 500,
-      messages: allMessages,
+      messages: agentMessages,
     });
 
     return new Response(
       new ReadableStream({
         async start(controller) {
-          let full = "";
+          const prefix = `Verified from web (${searchCount} searches):\n`;
+          controller.enqueue(encoder.encode(prefix));
+          let full = prefix;
           try {
             for await (const chunk of stream) {
               const token = chunk.choices?.[0]?.delta?.content ?? "";
