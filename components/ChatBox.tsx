@@ -188,16 +188,16 @@ export default function ChatBox({ preset }: { preset?: string }) {
   }
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="text-2xl font-semibold text-slate-900">
+    <div className="rounded-2xl p-4" style={{background:"#0e0e0e"}}>
+      <h2 className="text-base font-semibold text-slate-100">
         🤖 Ask my AI Resume Assistant
       </h2>
-      <p className="text-sm text-slate-600 mt-1">
+      <p className="text-xs text-slate-500 mt-1">
         Ask about projects, skills, technical decisions, and experience.
       </p>
 
       {/* Chat window */}
-      <div className="mt-4 h-[420px] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mt-3 h-[340px] overflow-y-auto rounded-xl p-3" style={{background:"#0a0a0a", border:"1px solid #1e1e1e"}}>
         <div className="space-y-3">
           {messages.map((m, idx) => {
             const isUser = m.role === "user";
@@ -210,8 +210,8 @@ export default function ChatBox({ preset }: { preset?: string }) {
                   className={[
                     "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm",
                     isUser
-                      ? "bg-slate-900 text-white"
-                      : "bg-white text-slate-900 border border-slate-200",
+                      ? "bg-slate-700 text-white"
+                      : "bg-[#141414] text-slate-200 border border-[#2a2a2a]",
                   ].join(" ")}
                 >
                   {m.role === "assistant" ? (
@@ -231,7 +231,7 @@ export default function ChatBox({ preset }: { preset?: string }) {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm bg-white text-slate-700 border border-slate-200">
+              <div className="max-w-[85%] rounded-2xl px-4 py-3 text-sm text-slate-400" style={{background:"#141414", border:"1px solid #2a2a2a"}}>
                 Thinking…
               </div>
             </div>
@@ -247,7 +247,7 @@ export default function ChatBox({ preset }: { preset?: string }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           rows={2}
-          className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          className="w-full resize-none rounded-lg px-3 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-600" style={{background:"#141414", border:"1px solid #2a2a2a"}}
           placeholder="Ask a question..."
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -259,14 +259,14 @@ export default function ChatBox({ preset }: { preset?: string }) {
         <button
           onClick={send}
           disabled={loading}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-white hover:bg-slate-800 disabled:opacity-60"
+          className="rounded-lg px-4 py-2 text-sm font-medium disabled:opacity-40 transition-colors" style={{background:"#e2e8f0", color:"#0f172a"}}
           type="button"
         >
           {loading ? "..." : "Ask"}
         </button>
       </div>
 
-      <p className="mt-2 text-xs text-slate-500">
+      <p className="mt-2 text-xs text-slate-600">
         Tip: Press Enter to send, Shift+Enter for a new line.
       </p>
     </div>
